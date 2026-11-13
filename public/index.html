@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Squad Board · Multica 小队可视化</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23F0B429'/%3E%3Ccircle cx='16' cy='10' r='4' fill='%230B0D10'/%3E%3Ccircle cx='8' cy='23' r='3' fill='%230B0D10'/%3E%3Ccircle cx='24' cy='23' r='3' fill='%230B0D10'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="9" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="16" cy="10" r="3.4" fill="currentColor"/>
+        <circle cx="8.5" cy="23" r="2.6" fill="currentColor"/>
+        <circle cx="23.5" cy="23" r="2.6" fill="currentColor"/>
+        <path d="M16 13.5v3.5m0 0c0 2-4 3-7.5 3.5m7.5-3.5c0 2 4 3 7.5 3.5" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+      <div class="brand-text">
+        <strong>Squad Board</strong>
+        <span>Multica 小队可视化</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <select id="workspace-select" class="select" title="切换工作区"></select>
+      <button id="refresh-btn" class="btn btn-ghost" title="刷新数据">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6M16.5 3.5v3.6h-3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>刷新</span>
+      </button>
+      <button id="dispatch-btn" class="btn btn-primary">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        <span>派活</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stats" id="stats"></section>
+
+    <nav class="squad-tabs" id="squad-tabs"></nav>
+
+    <div class="columns">
+      <div class="col-main">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>组织图</h2>
+            <span class="panel-sub" id="org-sub"></span>
+          </div>
+          <div class="org-chart" id="org-chart"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>成员卡片</h2>
+            <span class="panel-sub" id="cards-sub"></span>
+          </div>
+          <div class="card-grid" id="card-grid"></div>
+        </section>
+      </div>
+
+      <aside class="col-side">
+        <section class="panel">
+          <div class="panel-head"><h2>未结任务</h2></div>
+          <div class="issue-list" id="issue-list"></div>
+        </section>
+        <section class="panel hint-panel">
+          <div class="panel-head"><h2>派活规则</h2></div>
+          <ul class="hints">
+            <li>派给<strong>小队</strong>：只唤醒队长，由队长评估后再 <code>@</code> 成员，不会全员并发。</li>
+            <li>派给<strong>成员</strong>：该智能体直接入队一次运行。</li>
+            <li>评论里纯文本 <code>@名字</code> 不触发，必须使用花名册的 mention 格式。</li>
+            <li><code>backlog</code> 状态不触发运行。</li>
+            <li>本页面仅监听 <code>127.0.0.1</code>，凭证由本机 multica CLI 管理。</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <div class="modal-mask" id="modal-mask" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h3 id="modal-title">派活</h3>
+        <button class="btn btn-ghost btn-icon" id="modal-close" title="关闭">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <form id="dispatch-form" class="modal-body">
+        <label class="field">
+          <span>指派给</span>
+          <select id="assignee-select" class="select" required></select>
+        </label>
+        <p class="field-note" id="assignee-note"></p>
+        <label class="field">
+          <span>标题</span>
+          <input id="issue-title" class="input" type="text" maxlength="200" placeholder="要做什么，一句话说清楚" required />
+        </label>
+        <label class="field">
+          <span>描述</span>
+          <textarea id="issue-desc" class="textarea" rows="6" placeholder="背景、验收标准、相关仓库或文档路径…"></textarea>
+        </label>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" id="modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="submit-btn">创建并派活</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toast-stack"></div>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

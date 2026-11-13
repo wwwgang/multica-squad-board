@@ -1,0 +1,23 @@
+{
+  "name": "multica-squad-board",
+  "version": "0.1.0",
+  "description": "Org chart, member cards and one-click dispatch for Multica squads. Local-only, zero dependencies.",
+  "type": "module",
+  "bin": {
+    "multica-squad-board": "server.js"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "keywords": [
+    "multica",
+    "squad",
+    "agents",
+    "dashboard",
+    "visualization"
+  ]
+}
