@@ -1,4 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
+const DEMO = new URLSearchParams(location.search).has('demo');
 
 const state = {
   workspaces: [],
@@ -30,6 +31,44 @@ function relTime(iso) {
 
 const agentStatus = (a) => (a && a.status === 'working' ? 'working' : a ? 'idle' : 'offline');
 const statusText = { working: '工作中', idle: '空闲', offline: '未知' };
+
+function demoOverview() {
+  const runtime = { name: 'MacBook Pro', lastSeenAt: new Date().toISOString(), status: 'online' };
+  const agent = (id, name, description, status, openIssues, activeIssues) => ({
+    id, name, description, status, model: 'auto', avatarUrl: '', runtimeMode: 'local',
+    runtime, updatedAt: new Date(Date.now() - openIssues * 3600e3).toISOString(),
+    openIssues, activeIssues,
+  });
+  const atlas = agent('a-lead', 'Atlas', '编排整体交付流水线：拆解任务、分派成员、汇总结果。', 'working', 1, 1);
+  const scout = agent('a-scout', 'Scout', '需求分析与拆解，产出验收标准与边界条件。', 'idle', 0, 0);
+  const forge = agent('a-forge', 'Forge', '后端实现：API、数据模型、迁移与单元测试。', 'working', 2, 1);
+  const pixel = agent('a-pixel', 'Pixel', '前端实现：页面、组件与交互状态。', 'idle', 0, 0);
+  const probe = agent('a-probe', 'Probe', '测试与验收：端到端用例、回归与报告。', 'idle', 1, 0);
+  const harbor = agent('a-harbor', 'Harbor', '发布编排：环境检查、灰度与回滚决策。', 'idle', 0, 0);
+  const deploy = agent('a-deploy', 'Deploy', '部署执行与健康检查。', 'idle', 0, 0);
+  const sentry = agent('a-sentry', 'Sentry', '线上监控与告警响应。', 'idle', 0, 0);
+  const member = (a, role, leader = false) => ({ memberId: a.id, type: 'agent', role, isLeader: leader, agent: a });
+  return {
+    squads: [
+      {
+        id: 's-delivery', name: 'Product Delivery', description: '产品交付小队', openIssues: 3, activeIssues: 1,
+        members: [member(atlas, 'leader', true), member(scout, '需求分析'), member(forge, '后端'), member(pixel, '前端'), member(probe, '测试')],
+      },
+      {
+        id: 's-release', name: 'Release Ops', description: '发布运维小队', openIssues: 0, activeIssues: 0,
+        members: [member(harbor, 'leader', true), member(deploy, '部署'), member(sentry, '监控')],
+      },
+    ],
+    agents: [atlas, scout, forge, pixel, probe, harbor, deploy, sentry],
+    recentIssues: [
+      { id: 'i-1', identifier: 'DEMO-42', title: '导出 CSV 在 1 万行以上超时', status: 'in_progress', assigneeType: 'squad', assigneeId: 's-delivery', updatedAt: new Date(Date.now() - 8 * 60e3).toISOString() },
+      { id: 'i-2', identifier: 'DEMO-41', title: '为结算服务补充端到端测试', status: 'in_review', assigneeType: 'agent', assigneeId: 'a-probe', updatedAt: new Date(Date.now() - 45 * 60e3).toISOString() },
+      { id: 'i-3', identifier: 'DEMO-40', title: '登录页错误提示文案统一', status: 'todo', assigneeType: 'agent', assigneeId: 'a-pixel', updatedAt: new Date(Date.now() - 3 * 3600e3).toISOString() },
+    ],
+    appUrl: '',
+    generatedAt: new Date().toISOString(),
+  };
+}
 
 async function api(path, options) {
   const res = await fetch(path, options);
@@ -88,6 +127,7 @@ async function loadOverview(refresh = false) {
 }
 
 async function refresh(refresh = true) {
+  if (DEMO) return;
   const btn = $('#refresh-btn');
   btn.disabled = true;
   try {
@@ -315,6 +355,10 @@ function updateAssigneeNote() {
 }
 
 function openModal(assigneeId) {
+  if (DEMO) {
+    toast('演示模式不支持派活', { detail: '用 node server.js 启动真实服务后再试。' });
+    return;
+  }
   if (!state.overview) return;
   renderAssigneeOptions();
   if (assigneeId) $('#assignee-select').value = assigneeId;
@@ -364,6 +408,7 @@ async function submitDispatch(event) {
 $('#refresh-btn').onclick = () => refresh(true);
 $('#dispatch-btn').onclick = () => openModal();
 $('#workspace-select').onchange = async (e) => {
+  if (DEMO) return;
   state.workspaceId = e.target.value;
   state.squadId = '';
   localStorage.setItem('msb.workspace', state.workspaceId);
@@ -378,6 +423,16 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#mod
 window.addEventListener('resize', () => requestAnimationFrame(drawConnectors));
 
 (async function init() {
+  if (DEMO) {
+    state.workspaces = [{ id: 'demo', name: 'Demo Workspace', slug: 'demo' }];
+    state.workspaceId = 'demo';
+    state.overview = demoOverview();
+    state.squadId = state.overview.squads[0].id;
+    $('#workspace-select').innerHTML = '<option>Demo Workspace</option>';
+    render();
+    toast('演示模式：数据为虚构示例，不会读取或修改你的 Multica。');
+    return;
+  }
   try {
     await loadWorkspaces();
     await loadOverview();
